@@ -1,0 +1,46 @@
+
+// STL
+#include <iostream>
+#include <fstream>
+#include <stdexcept>
+#include <vector>
+
+#include "util/endian.h"
+#include "colmap_types.hpp"
+
+inline void WriteCamerasBinary(const std::string& path, const std::vector<Camera>& cameras) {
+    std::ofstream file(path, std::ios::trunc | std::ios::binary);
+    if (!file.is_open()) throw std::runtime_error("Unable to open output file: " + path);
+
+    WriteBinaryLittleEndian<uint64_t>(&file, cameras.size());
+
+    for (const Camera& camera : cameras) {
+        WriteBinaryLittleEndian<camera_t>(&file, camera.CameraId());
+        WriteBinaryLittleEndian<int>(&file, camera.ModelId());
+        WriteBinaryLittleEndian<uint64_t>(&file, camera.Width());
+        WriteBinaryLittleEndian<uint64_t>(&file, camera.Height());
+        for (const double param : camera.Params())
+            WriteBinaryLittleEndian<double>(&file, param);
+    }
+}
+
+int main() {
+
+//OPENCV_FISHEYE
+    std::vector<double> params = {2941.2, 2941.2, 511.5, 383.5, 0, 0, 0, 0};
+    Camera camera;
+
+    camera.SetCameraId(1);
+    camera.SetModelIdFromName("FULL_OPENCV");
+    camera.SetWidth(1024);
+    camera.SetHeight(728);
+    camera.SetParams(params);
+
+    if (!camera.VerifyParams())
+        throw std::domain_error("Invalid number of camera parameters");
+
+    std::vector<Camera> cameras = {camera};
+    WriteCamerasBinary("./cameras.bin", cameras);
+
+    return 0;
+}

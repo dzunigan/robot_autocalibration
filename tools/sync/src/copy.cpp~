@@ -1,0 +1,48 @@
+
+// STL
+#include <cstddef>
+#include <iostream>
+
+// Boost
+#include <boost/filesystem.hpp>
+
+// GFlags
+#include <gflags/gflags.h>
+
+#include "sequence.hpp"
+
+DEFINE_uint64(o, 0, "Sequence offset");
+DEFINE_uint64(n, 0, "Max sequence length");
+DEFINE_uint64(s, 0, "Skip sequence elements");
+
+int main(int argc, char *argv[]) {
+
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
+
+    if (argc != 3) {
+        std::cout << "Usage: copy <input_path> <output_path> [options]" << std::endl;
+        return -1;
+    }
+
+    namespace fs = boost::filesystem;
+
+    fs::path input_path = argv[1];
+    fs::path output_path = argv[2];
+
+    if (!fs::is_directory(input_path))
+        std::cout << "Invalid input path" << std::endl;
+
+    std::vector<std::string> sequence = getSequence(input_path.string(), FLAGS_o, FLAGS_n, FLAGS_s);
+
+    fs::create_directories(output_path);
+    std::size_t ctr = 0;
+    for (const std::string &file : sequence) {
+        std::cout << "\r" << ctr++ << " / " << sequence.size() << std::flush;
+        fs::path file_path = file;
+        fs::path new_file_path = output_path / file_path.filename();
+        fs::copy_file(file_path, new_file_path, fs::copy_option::fail_if_exists);
+    }
+    std::cout << "\r" << ctr << " / " << sequence.size() << std::endl;
+
+    return 0;
+}

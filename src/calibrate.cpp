@@ -18,6 +18,7 @@
 // Glog
 #include <glog/logging.h>
 
+//#include "ransac.h"
 #include "loransac.h"
 #include "estimators.hpp"
 
@@ -27,6 +28,7 @@
 #include "util/csv.hpp"
 #include "util/misc.hpp"
 
+//using Calibration_RANSAC = colmap::RANSAC<CalibrationEstimator>;
 using Calibration_RANSAC = colmap::LORANSAC<CalibrationEstimator, CalibrationEstimator>;
 EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION_CUSTOM(Calibration_RANSAC::Report)
 EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION_CUSTOM(Sensor)
@@ -153,11 +155,12 @@ int main(int argc, char* argv[]) {
     ObservationDatabase observations; // RANSAC inliers
 
     colmap::RANSACOptions ransac_options;
-    ransac_options.max_error = 0.03;
+    ransac_options.max_error = 0.1;
+    //ransac_options.max_error = 0.03;
     ransac_options.min_inlier_ratio = 0.25;
-    ransac_options.confidence = 0.99999;
-    ransac_options.min_num_trials = 1000;
-    ransac_options.max_num_trials = 5000;
+    ransac_options.confidence = 0.9999;
+    ransac_options.min_num_trials =  100;
+    ransac_options.max_num_trials = 1000;
 
     std::vector<Calibration_RANSAC::Report> reports(sensors.size() - 1);
     for (size_t i = 1; i < sensors.size(); ++i) {
@@ -167,15 +170,30 @@ int main(int argc, char* argv[]) {
         Calibration_RANSAC calibration_ransac(ransac_options);
         ransac_report = calibration_ransac.Estimate(reference.Observations(), sensor.Observations());
 
+        std::vector<CalibrationEstimator::X_t> inliers_0;
+        std::vector<CalibrationEstimator::Y_t> inliers_i;
+
         CHECK_EQ(sensor.Observations().size(), ransac_report.inlier_mask.size());
         for (size_t k = 0; k < sensor.Observations().size(); ++k) {
-            if (ransac_report.inlier_mask.at(k))
+            if (ransac_report.inlier_mask.at(k)) {
                 observations.AddIndexPair(reference.SensorId(), sensor.SensorId(), k, k);
+
+                inliers_0.push_back(reference.Obsevation(k));
+                inliers_i.push_back(sensor.Obsevation(k));
+            }
         }
 
         // Check inlier set
-        CHECK(ransac_report.inlier_mask.size() > ransac_options.min_inlier_ratio * sensor.Observations().size()) << "Not enough inliers!";
-        sensor.Calibration() = ransac_report.model;
+        std::cout << "Num. inliers: " << ransac_report.support.num_inliers << std::endl;
+        CHECK(ransac_report.support.num_inliers > ransac_options.min_inlier_ratio * sensor.Observations().size()) << "Not enough inliers!";
+
+        // Compute model from inliers
+        std::vector<CalibrationEstimator::M_t> models = CalibrationEstimator::Estimate(inliers_0, inliers_i);
+        CHECK_EQ(models.size(), 1);
+        sensor.Calibration() = models.front();
+
+        PrintCSV(std::cout, sensor.Calibration());
+        std::cout << std::endl;
     }
 
     // Joint Optimization
@@ -211,7 +229,7 @@ int main(int argc, char* argv[]) {
     BatchCalibrationOptions options;
     options.use_additional_constraints = true;
     options.loss_function_type = BatchCalibrationOptions::LossFunctionType::CAUCHY;
-    options.loss_function_scale = 0.01;
+    options.loss_function_scale = 0.1;
     options.print_summary = false;
     options.solver_options.minimizer_progress_to_stdout = false;
 

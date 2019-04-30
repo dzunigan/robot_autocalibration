@@ -514,3 +514,105 @@ bool CalibrationEstimator3d::estimateRyx(const std::vector<X_t>& x, const std::v
 
     return true;
 }
+
+std::vector<GroundEstimator::M_t> GroundEstimator::Estimate(const std::vector<X_t> &x) {
+    CHECK_GE(x.size(), kMinNumSamples);
+
+    Eigen::Matrix4d M = Eigen::Matrix4d::Zero();
+
+    const std::size_t n = x.size();
+    for (std::size_t k = 0; k < n; ++k) {
+        const X_t &x_k = x[k];
+
+        Eigen::Matrix<double, 1, 4> Q;
+        Q << 1.0, x_k(0), x_k(1), x_k(2);
+
+        M += Q.transpose()*Q;
+    }
+
+    Eigen::Matrix4d W = Eigen::Matrix4d::Zero();
+    W(1, 1) = 1; W(2, 2) = 1; W(3, 3) = 1;
+
+    const double m00 = M(0, 0),
+            m01 = 0.5*(M(0, 1) + M(1, 0)),
+            m02 = 0.5*(M(0, 2) + M(2, 0)),
+            m03 = 0.5*(M(0, 3) + M(3, 0)),
+            m11 = M(1, 1),
+            m12 = 0.5*(M(1, 2) + M(2, 1)),
+            m13 = 0.5*(M(1, 3) + M(3, 1)),
+            m22 = M(2, 2),
+            m23 = 0.5*(M(2, 3) + M(3, 2)),
+            m33 = M(3, 3);
+
+    //m00*s^3 + (- m01^2 - m02^2 - m03^2 + m00*m11 + m00*m22 + m00*m33)*s^2 + (2*m01*m02*m12 - m00*m13^2 - m02^2*m11 - m03^2*m11 - m00*m23^2 - m01^2*m22 - m03^2*m22 - m01^2*m33 - m02^2*m33 - m00*m12^2 + 2*m01*m03*m13 + 2*m02*m03*m23 + m00*m11*m22 + m00*m11*m33 + m00*m22*m33)*s + m01^2*m23^2 - m22*m33*m01^2 + 2*m33*m01*m02*m12 - 2*m01*m02*m13*m23 - 2*m01*m03*m12*m23 + 2*m22*m01*m03*m13 + m02^2*m13^2 - m11*m33*m02^2 - 2*m02*m03*m12*m13 + 2*m11*m02*m03*m23 + m03^2*m12^2 - m11*m22*m03^2 - m00*m33*m12^2 + 2*m00*m12*m13*m23 - m00*m22*m13^2 - m00*m11*m23^2 + m00*m11*m22*m33
+
+    using std::pow;
+    double a = m00,
+            b = - pow(m01,2) - pow(m02,2) - pow(m03,2) + m00*m11 + m00*m22 + m00*m33,
+            c = 2.0*m01*m02*m12 - m00*pow(m13,2) - pow(m02,2)*m11 - pow(m03,2)*m11 - m00*pow(m23,2) - pow(m01,2)*m22 - pow(m03,2)*m22 - pow(m01,2)*m33 - pow(m02,2)*m33 - m00*pow(m12,2) + 2.0*m01*m03*m13 + 2.0*m02*m03*m23 + m00*m11*m22 + m00*m11*m33 + m00*m22*m33,
+            d = pow(m01,2)*pow(m23,2) - m22*m33*pow(m01,2) + 2.0*m33*m01*m02*m12 - 2.0*m01*m02*m13*m23 - 2.0*m01*m03*m12*m23 + 2.0*m22*m01*m03*m13 + pow(m02,2)*pow(m13,2) - m11*m33*pow(m02,2) - 2.0*m02*m03*m12*m13 + 2.0*m11*m02*m03*m23 + pow(m03,2)*pow(m12,2) - m11*m22*pow(m03,2) - m00*m33*pow(m12,2) + 2.0*m00*m12*m13*m23 - m00*m22*pow(m13,2) - m00*m11*pow(m23,2) + m00*m11*m22*m33;
+
+    // solve: a*s^3 + b*s^2 + c*s + d = 0
+    double roots[3];
+    const int num_solutions = SolveCubicReals(a, b, c, d, roots);
+
+    M_t solution; // Unique solution
+    bool solution_found = false;
+    double solution_cost = std::numeric_limits<double>::max();
+
+    for (int i = 0; i < num_solutions; ++i) {
+        const double lambda = roots[i];
+
+        Eigen::MatrixXd phi;
+        int kernel_size = solveNullspace(M + lambda*W, phi);
+
+        if (kernel_size != 1) continue;
+
+        phi *= boost::math::sign(phi(0, 0)) / phi.block<3, 1>(1, 0).norm(); // Normalize solution
+
+        double pitch, roll;
+        roll = std::atan2(phi(2), phi(3));
+        const double cr = std::cos(roll), sr = std::sin(roll);
+        if (cr < sr) pitch = std::atan2(-phi(1), phi(2)/sr);
+        else pitch = std::atan2(-phi(1), phi(3)/cr);
+
+        M_t candidate_solution;
+        candidate_solution << phi(0), pitch, roll;
+
+        std::vector<double> residuals;
+        Residuals(x, candidate_solution, &residuals);
+
+        const double cost = std::accumulate(residuals.begin(), residuals.end(), 0.0);
+        if (cost < solution_cost) {
+            solution = candidate_solution;
+            solution_found = true;
+            solution_cost = cost;
+        }
+    }
+
+    std::vector<M_t> models;
+    if (solution_found)
+        models.push_back(solution);
+
+    return models;
+}
+
+void GroundEstimator::Residuals(const std::vector<X_t>& x, const M_t& m,
+        std::vector<double>* residuals) {
+    CHECK_GT(m(0), 0);
+
+    const std::size_t n = x.size();
+    residuals->resize(n);
+
+    const double h = m(0);
+    const double cp = std::cos(m(1)), sp = std::sin(m(1));
+    const double cr = std::cos(2), sr = std::sin(m(2));
+    const Eigen::RowVector3d rz(-sp, cp*sr, cp*cr);
+
+    for (std::size_t k = 0; k < n; ++k) {
+        const X_t &x_k = x[k];
+
+        double e = rz*x_k + h;
+        (*residuals)[k] = e*e;
+    }
+}

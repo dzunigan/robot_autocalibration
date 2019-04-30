@@ -2,6 +2,7 @@
 
 // STL
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <iostream>
 #include <limits>
@@ -279,7 +280,7 @@ struct BatchCalibrationOptions {
     }
 
     inline bool Check() const {
-        CHECK_GE(loss_function_scale, 0);
+        CHECK_GE(loss_function_scale, 0.0);
         return true;
     }
 };
@@ -321,6 +322,7 @@ public:
         CHECK_NE(reference_sensor_id_, kInvalidSensorId);
         return true;
     }
+
 private:
 
     sensor_t reference_sensor_id_;
@@ -331,7 +333,6 @@ private:
     class ObservationDatabase observation_database_;
 
     std::unordered_set<index_pair_t> additional_constraints_;
-
 };
 
 inline void PrintSolverSummary(const ceres::Solver::Summary& summary) {
@@ -432,3 +433,193 @@ private:
     BatchCalibrationConfig config_;
     ceres::Solver::Summary summary_;
 };
+
+////////////////////////////////////////////
+//           Ground Calibration           //
+////////////////////////////////////////////
+
+// Ground calibration residual.
+struct GroundCalibrationResidual {
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    GroundCalibrationResidual(const Eigen::Vector3d &x)
+        : x_(x) { }
+
+    template <typename T>
+    bool operator()(const T* const z_ptr, const T* const pitch_ptr, const T* const roll_ptr,
+                    T* residuals_ptr) const {
+        const T cp = ceres::cos(*pitch_ptr), sp = ceres::sin(*pitch_ptr);
+        const T cr = ceres::cos(*roll_ptr), sr = ceres::sin(*roll_ptr);
+
+        Eigen::Matrix<T, 3, 1> R_z(-sp, cp*sr, cp*cr);
+
+        // Compute the signed perpendicuar distance
+        residuals_ptr[0] = R_z.dot(x_.template cast<T>()) + *z_ptr;
+
+        return true;
+    }
+
+    static ceres::CostFunction* Create(const Eigen::Vector3d &x) {
+        return (new ceres::AutoDiffCostFunction<GroundCalibrationResidual, 1, 1, 1, 1>(
+                    new GroundCalibrationResidual(x)));
+    }
+
+private:
+
+    const Eigen::Vector3d x_; // Observations (3d point)
+};
+
+// Nonlinear optimization options
+struct GroundCalibrationOptions {
+    // Loss function types: Trivial (non-robust) and Cauchy (robust) loss.
+    enum class LossFunctionType { TRIVIAL, CAUCHY };
+    LossFunctionType loss_function_type = LossFunctionType::TRIVIAL;
+
+    // Scaling factor determines residual at which robustification takes place.
+    double loss_function_scale = 1.0;
+
+    // Whether to print a final summary.
+    bool print_summary = false;
+
+    // Ceres-Solver options.
+    ceres::Solver::Options solver_options;
+
+    GroundCalibrationOptions() {
+      solver_options.function_tolerance = 1e-6;
+      solver_options.gradient_tolerance = 1e-10;
+      solver_options.parameter_tolerance = 1e-8;
+      solver_options.minimizer_progress_to_stdout = false;
+      solver_options.max_num_iterations = 100;
+      solver_options.max_linear_solver_iterations = 200;
+      solver_options.max_num_consecutive_invalid_steps = 5;
+      solver_options.max_consecutive_nonmonotonic_steps = 5;
+      solver_options.num_threads = -1;
+      solver_options.num_linear_solver_threads = -1;
+    }
+
+    // Create a new loss function based on the specified options. The caller
+    // takes ownership of the loss function.
+    ceres::LossFunction* CreateLossFunction() const {
+        ceres::LossFunction* loss_function = nullptr;
+        switch (loss_function_type) {
+        case LossFunctionType::TRIVIAL:
+            loss_function = new ceres::TrivialLoss();
+            break;
+        case LossFunctionType::CAUCHY:
+            loss_function = new ceres::CauchyLoss(loss_function_scale);
+            break;
+        }
+        return loss_function;
+    }
+
+    inline bool Check() const {
+        CHECK_GE(loss_function_scale, 0.0);
+        return true;
+    }
+};
+
+// Configuration container to setup ground calibration problems
+class GroundCalibrationConfig {
+public:
+
+    GroundCalibrationConfig() { }
+
+    // Access parameters
+    inline const Eigen::Vector3d& Parameters() const { return params_; }
+    inline Eigen::Vector3d& Parameters() { return params_; }
+
+    // Access observations
+    inline const std::vector<Eigen::Vector3d>& Observations() const { return observations_; }
+    inline std::vector<Eigen::Vector3d>& Observations() { return observations_; }
+
+    // Access individual parameters
+    inline double Parameter(std::size_t idx) const { return params_(idx); }
+    inline double& Parameter(std::size_t idx) { return params_(idx); }
+
+    // Access individual observations
+    inline const Eigen::Vector3d& Observation(std::size_t idx) const { return observations_.at(idx); }
+    inline Eigen::Vector3d& Observation(std::size_t idx) { return observations_.at(idx); }
+
+    inline bool Check() const {
+        CHECK_GE(observations_.size(), 3);
+        return true;
+    }
+
+private:
+
+    Eigen::Vector3d params_;
+    std::vector<Eigen::Vector3d> observations_;
+};
+
+// Nonlinear refinement for ground calibration
+class GroundCalibration {
+public:
+
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+
+    GroundCalibration(const GroundCalibrationOptions& options, const GroundCalibrationConfig& config)
+        : options_(options), config_(config) {
+        CHECK(options_.Check());
+        CHECK(config_.Check());
+    }
+
+    inline bool Solve() {
+        ceres::LossFunction* loss_function = options_.CreateLossFunction();
+        ceres::LocalParameterization* angle_parametrization = AngleLocalParameterization::Create();
+
+        ceres::Problem::Options problem_options;
+        ceres::Problem problem(problem_options);
+
+        // Add calibration residuals
+        for (const Eigen::Vector3d& obs : config_.Observations()) {
+            ceres::CostFunction* cost_function = GroundCalibrationResidual::Create(obs);
+
+            problem.AddResidualBlock(cost_function, loss_function,
+                                     &config_.Parameter(0), &config_.Parameter(1), &config_.Parameter(2));
+        }
+
+        if (problem.NumResiduals() == 0) {
+            return false;
+        }
+
+        // Set angle parameterization
+        problem.SetParameterization(&config_.Parameter(1), angle_parametrization);
+        problem.SetParameterization(&config_.Parameter(2), angle_parametrization);
+
+        ceres::Solver::Options solver_options = options_.solver_options;
+        solver_options.linear_solver_type = ceres::DENSE_QR;
+        solver_options.num_threads = 1;
+        solver_options.num_linear_solver_threads = 1;
+
+        std::string solver_error;
+        CHECK(solver_options.IsValid(&solver_error)) << solver_error;
+
+        ceres::Solve(solver_options, &problem, &summary_);
+
+        if (solver_options.minimizer_progress_to_stdout) {
+            std::cout << std::endl;
+        }
+
+        if (options_.print_summary) {
+            // TODO: print header
+            PrintSolverSummary(summary_);
+        }
+
+        return summary_.termination_type == ceres::TerminationType::CONVERGENCE;
+    }
+
+    // Get calibration parameters (z, pitch [rad], roll [rad])
+    inline const Eigen::Vector3d& Parameters() {
+        return config_.Parameters();
+    }
+
+    // Get the Ceres solver summary for the last call to 'Solve'
+    inline const ceres::Solver::Summary& Summary() const { return summary_; }
+
+private:
+
+    const GroundCalibrationOptions options_;
+    GroundCalibrationConfig config_;
+    ceres::Solver::Summary summary_;
+};
+

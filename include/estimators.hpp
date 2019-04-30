@@ -150,3 +150,33 @@ private:
                                      const std::vector<Y_t>& y, Eigen::Matrix3d& R_yx);
 
 };
+
+class GroundEstimator {
+public:
+    typedef Eigen::Vector3d X_t; // (x, y, z)
+    typedef Eigen::Vector3d M_t; // (height, pitch, roll)
+
+    // The minimum number of samples needed to estimate a model.
+    static const int kMinNumSamples = 3;
+
+    // Estimate relative transformation wrt ground from a set of
+    // 3D ground points.
+    //
+    // At least 3 points are needed
+    //
+    // @param x   Set of detected ground points.
+    //
+    // @return    Relative pose of the sensor observing ground points
+    static std::vector<M_t> Estimate(const std::vector<X_t>& x);
+
+    // Calculate the residuals of a set of 3D ground points
+    // given a relative transformation.
+    //
+    // Residuals are defined as the squared perpendicular distance to the ground plane.
+    //
+    // @param x          First set of incremental motions (metrically accurate, e.g. wheel odometry).
+    // @param m          Model representing the relative transformation between the sensor and the ground plane.
+    // @param residuals  Output vector of residuals.
+    static void Residuals(const std::vector<X_t>& x, const M_t& m,
+                          std::vector<double>* residuals);
+};

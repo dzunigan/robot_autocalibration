@@ -1,3 +1,5 @@
+// Header only numeric CSV, based on Eigen
+// Copyright (C) 2018  David Zuñiga-Noël <dzuniga at uma.es>
 
 #ifndef CSV_HPP_
 #define CSV_HPP_
@@ -17,7 +19,7 @@
 namespace csv {
 
 template<typename Scalar>
-Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> read (const std::string &path, char delim = ',') {
+Eigen::Matrix<Scalar, Eigen::Dynamic, Eigen::Dynamic> read(const std::string &path, char delim = ',') {
 
     std::string line;
     std::ifstream input(path);
@@ -69,3 +71,4 @@ bool write(const Eigen::MatrixBase<Derived> &data, const std::string &path, int 
 } // namespace csv
 
 #endif // CSV_HPP_
+

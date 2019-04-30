@@ -1,0 +1,226 @@
+#ifndef SVI_BENCHMARK_HPP_
+#define SVI_BENCHMARK_HPP_
+
+// STL
+#include <algorithm>
+#include <cmath>
+#include <fstream>
+#include <iomanip>
+#include <sstream>
+#include <string>
+#include <utility>
+#include <vector>
+
+// Eigen
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+
+namespace svi_benchmark {
+
+// Types
+
+using record_t = std::pair<double, std::string>;
+
+struct pose_t {
+    double tx, ty, tz, qw, qx, qy, qz;
+
+    pose_t()
+        : tx(0.0), ty(0.0), tz(0.0), qw(1.0), qx(0.0), qy(0.0), qz(0.0)
+    { }
+
+    pose_t(double tx, double ty, double tz, double qw, double qx, double qy, double qz)
+        : tx(tx), ty(ty), tz(tz), qw(qw), qx(qx), qy(qy), qz(qz)
+    {
+        q_normalize();
+    }
+
+    // From Eigen Transform (constructor)
+    template<typename Scalar, int Type>
+    pose_t(const Eigen::Transform<Scalar, 3, Type> &T) {
+        Eigen::Quaternion<Scalar> q(T.rotation());
+        q.normalize();
+
+        tx = T.translation()(0);
+        ty = T.translation()(1);
+        tz = T.translation()(2);
+        qw = q.w();
+        qx = q.x();
+        qy = q.y();
+        qz = q.z();
+    }
+
+    // To Eigen Transform (implicit conversion)
+    template<typename Scalar, int Type>
+    operator Eigen::Transform<Scalar, 3, Type>() const {
+        Eigen::Quaternion<Scalar> q(qw, qx, qy, qz);
+        q.normalize();
+
+        Eigen::Transform<Scalar, 3, Type> T(q);
+
+        T.translation()(0) = tx;
+        T.translation()(1) = ty;
+        T.translation()(2) = tz;
+
+        return T;
+    }
+
+    // Inverse
+    inline svi_benchmark::pose_t inverse() {
+        return Eigen::Isometry3d(*this).inverse();
+    }
+
+private:
+    inline void q_normalize() {
+        double norm = std::sqrt(qw*qw + qx*qx + qy*qy + qz*qz);
+        qw /= norm;
+        qx /= norm;
+        qy /= norm;
+        qz /= norm;
+    }
+};
+
+template<typename T>
+struct trajectory_t {
+    T id;
+    pose_t pose;
+};
+
+struct entry_t {
+    int segment_id;
+    trajectory_t<double> trajectory;
+};
+
+using Records = std::vector<record_t>;
+using Trajectory = std::vector<trajectory_t<double>>;
+using Sequence = std::vector<trajectory_t<int>>;
+using Groundtruth = std::vector<entry_t>;
+
+// ------------------------------------------------------------
+
+// Comparators
+
+template<typename T>
+inline bool operator<(const trajectory_t<T> &lhs, const trajectory_t<T> &rhs) {
+    return (lhs.id < rhs.id);
+}
+
+inline bool operator<(const entry_t &lhs, const entry_t &rhs) {
+    return (lhs.trajectory < rhs.trajectory);
+}
+
+// ------------------------------------------------------------
+
+// IO helpers
+
+inline std::string to_string(int n, int w) {
+
+    std::stringstream ss;
+    ss << std::setw(w) << std::setfill('0') << n;
+    return ss.str();
+}
+
+inline std::string to_string(double n, int precision) {
+
+    std::stringstream ss;
+    ss << std::fixed << std::setprecision(precision) << n;
+    return ss.str();
+}
+
+inline std::istream& operator>>(std::istream &lhs, record_t &rhs) {
+
+    lhs >> rhs.first >> rhs.second;
+    return lhs;
+}
+
+inline std::istream& operator>>(std::istream &lhs, pose_t &rhs) {
+
+    lhs >> rhs.tx >> rhs.ty >> rhs.tz >> rhs.qw >> rhs.qx >> rhs.qy >> rhs.qz;
+    return lhs;
+}
+
+template<typename T>
+inline std::istream& operator>>(std::istream &lhs, trajectory_t<T> &rhs) {
+
+    lhs >> rhs.id >> rhs.pose;
+    return lhs;
+}
+
+inline std::istream& operator>>(std::istream &lhs, entry_t &rhs) {
+
+    lhs >> rhs.segment_id >> rhs.trajectory;
+    return lhs;
+}
+
+inline std::ostream& operator<<(std::ostream &lhs, const record_t &rhs) {
+
+    lhs << to_string(rhs.first, 9) << " " << rhs.second;
+    return lhs;
+}
+
+inline std::ostream& operator<<(std::ostream &lhs, const pose_t &rhs) {
+
+    lhs << rhs.tx << " " << rhs.ty << " " << rhs.tz << " " << rhs.qw << " " << rhs.qx << " " << rhs.qy << " " << rhs.qz;
+    return lhs;
+}
+
+inline std::ostream& operator<<(std::ostream &lhs, const trajectory_t<double> &rhs) {
+
+    lhs << to_string(rhs.id, 9) << " " << rhs.pose;
+    return lhs;
+}
+
+inline std::ostream& operator<<(std::ostream &lhs, const trajectory_t<int> &rhs) {
+
+    lhs << rhs.id << " " << rhs.pose;
+    return lhs;
+}
+
+inline std::ostream& operator<<(std::ostream &lhs, const entry_t &rhs) {
+
+    lhs << rhs.segment_id << " " << rhs.trajectory;
+    return lhs;
+}
+
+template<typename T>
+inline std::vector<T> read_file(const std::string &path) {
+
+    std::vector<T> records;
+
+    std::ifstream input(path);
+    if (!input.is_open()) return records;
+
+    for (std::string line; std::getline(input, line);) {
+        if (line.empty() || line.front() == '#') continue;
+
+        std::istringstream iss(line);
+        T record;
+        if (iss >> record) records.push_back(std::move(record));
+    }
+
+    std::sort(records.begin(), records.end());
+    return records;
+}
+
+template<typename T>
+inline void write_stream(const std::vector<T> &records, std::ostream &stream) {
+    for (const T &record : records)
+        stream << record << std::endl;
+}
+
+template<typename T>
+inline bool write_file(const std::vector<T> &records, const std::string &path) {
+
+    std::ofstream output(path);
+    if (!output.is_open()) return false;
+
+    write_stream(records, output);
+
+    output.close();
+    return (!output.fail() && !output.bad());
+}
+
+// ------------------------------------------------------------
+
+} // namespace svi_benchmark
+
+#endif // SVI_BENCHMARK_HPP_

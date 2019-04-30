@@ -58,3 +58,15 @@ target_link_libraries(closed_form ${Boost_LIBRARIES} ${CERES_LIBRARIES} ${GFLAGS
 add_executable(calibrate3d src/calibrate3d.cpp src/random.cpp src/random_sampler.cpp src/support_measurement.cpp src/estimators.cpp)
 target_link_libraries(calibrate3d ${Boost_LIBRARIES} ${CERES_LIBRARIES} ${GFLAGS_LIBRARY} ${GLOG_LIBRARIES})
 
+add_executable(simulate src/simulate.cpp src/random.cpp src/random_sampler.cpp src/support_measurement.cpp src/estimators.cpp)
+target_link_libraries(simulate ${Boost_LIBRARIES} ${CERES_LIBRARIES} ${GFLAGS_LIBRARY} ${GLOG_LIBRARIES})
+
+add_executable(ground_calib src/ground_calib.cpp src/random.cpp src/random_sampler.cpp src/support_measurement.cpp src/estimators.cpp)
+target_link_libraries(ground_calib ${Boost_LIBRARIES} ${CERES_LIBRARIES} ${GFLAGS_LIBRARY} ${GLOG_LIBRARIES})
+
+add_executable(simulate3d src/simulate3d.cpp src/random.cpp src/random_sampler.cpp src/support_measurement.cpp)
+target_link_libraries(simulate3d ${Boost_LIBRARIES} ${CERES_LIBRARIES} ${GFLAGS_LIBRARY} ${GLOG_LIBRARIES})
+
+add_executable(simulate_ground src/simulate_ground.cpp src/random.cpp src/random_sampler.cpp src/support_measurement.cpp)
+target_link_libraries(simulate_ground ${Boost_LIBRARIES} ${CERES_LIBRARIES} ${GFLAGS_LIBRARY} ${GLOG_LIBRARIES})
+

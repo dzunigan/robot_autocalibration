@@ -1,0 +1,17 @@
+
+// STL
+#include <iostream>
+
+    // TODO: add flag for method (ate, rpe, ...+scale, etc) and metric (RMSE, ...)
+
+int main(int argc, char* argv[]) {
+
+    if (argc != 3) {
+        std::cout << "Usage: evaluate <groundtruth> <trajectory>" << std::endl;
+        return -1;
+    }
+
+    std::cout << "TODO..." << std::endl;
+
+    return 0;
+}
