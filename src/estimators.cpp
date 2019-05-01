@@ -1,5 +1,8 @@
 #include "estimators.hpp"
 
+// STL
+#include <numeric>
+
 // Boost
 #include <boost/math/special_functions/sign.hpp>
 
