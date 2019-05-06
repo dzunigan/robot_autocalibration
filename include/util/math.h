@@ -2,6 +2,7 @@
 #define MATH_HPP_
 
 // STL
+#include <algorithm>
 #include <cmath>
 #include <complex>
 #include <limits>
@@ -13,9 +14,39 @@
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
-#ifndef PI
-  #define PI 3.1415926535897932384
+#ifndef M_PI
+  #define M_PI 3.14159265358979323846264338327950288
 #endif
+
+// Return 1 if number is positive, -1 if negative, and 0 if the number is 0.
+template <typename T>
+int SignOfNumber(const T val) {
+  return (T(0) < val) - (val < T(0));
+}
+
+// Clip the given value to a low and maximum value.
+template <typename T>
+inline T Clip(const T& value, const T& low, const T& high) {
+  return std::max(low, std::min(value, high));
+}
+
+// Convert angle in degree to radians.
+inline float DegToRad(const float deg) {
+  return deg * 0.0174532925199432954743716805978692718781530857086181640625f;
+}
+
+inline double DegToRad(const double deg) {
+  return deg * 0.0174532925199432954743716805978692718781530857086181640625;
+}
+
+// Convert angle in radians to degree.
+inline float RadToDeg(const float rad) {
+  return rad * 57.29577951308232286464772187173366546630859375f;
+}
+
+inline double RadToDeg(const double rad) {
+  return rad * 57.29577951308232286464772187173366546630859375;
+}
 
 template<typename Scalar>
 inline bool is_negligible(Scalar x) {

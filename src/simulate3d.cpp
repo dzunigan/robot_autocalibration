@@ -3,7 +3,7 @@
     "simulate3d"
 
 #define FLAGS_CASES                                                                                \
-    FLAG_CASE(double, lin_std, 0.01, "Standard deviation for translation [m]")                     \
+    FLAG_CASE(double, lin_std, 0.005, "Standard deviation for translation [m]")                     \
     FLAG_CASE(double, ang_std, 0.03, "Standard deviation for rotation [rad]")
 
 #define ARGS_CASES                                                                                 \
@@ -29,11 +29,36 @@ void ValidateFlags() {
     RUNTIME_ASSERT(FLAGS_ang_std >= 0.0);
 }
 
-Eigen::Vector4d simulate_error(const Eigen::Vector4d& p) {
+Eigen::Isometry3d simulate_error(const Eigen::Isometry3d& p) {
     using namespace colmap;
-    Eigen::Vector4d e(RandomGaussian(0.0, FLAGS_lin_std), RandomGaussian(0.0, FLAGS_lin_std), RandomGaussian(0.0, FLAGS_ang_std), 1.0);
 
-    return PoseComposition<double>(p, e);
+    Eigen::Isometry3d e = Eigen::Isometry3d::Identity();
+
+    e.linear() = (Eigen::AngleAxisd(RandomGaussian(0.0, FLAGS_ang_std) * EIGEN_PI, Eigen::Vector3d::UnitZ()) *
+                  Eigen::AngleAxisd(RandomGaussian(0.0, FLAGS_ang_std) * EIGEN_PI, Eigen::Vector3d::UnitY()) *
+                  Eigen::AngleAxisd(RandomGaussian(0.0, FLAGS_ang_std) * EIGEN_PI, Eigen::Vector3d::UnitX()))
+                  .toRotationMatrix();
+ 
+    e.translation() = Eigen::Vector3d(RandomGaussian(0.0, FLAGS_lin_std),
+                                      RandomGaussian(0.0, FLAGS_lin_std),
+                                      RandomGaussian(0.0, FLAGS_lin_std));
+
+    return p * e;
+}
+
+Eigen::Isometry3d simulate_odometry_error(const Eigen::Isometry3d& p) {
+    using namespace colmap;
+
+    Eigen::Isometry3d e = Eigen::Isometry3d::Identity();
+
+    e.linear() = Eigen::AngleAxisd(RandomGaussian(0.0, FLAGS_ang_std) * EIGEN_PI, Eigen::Vector3d::UnitZ())
+                 .toRotationMatrix();
+ 
+    e.translation() = Eigen::Vector3d(RandomGaussian(0.0, FLAGS_lin_std),
+                                      RandomGaussian(0.0, FLAGS_lin_std),
+                                      0.0);
+
+    return p * e;
 }
 
 void add_pose(io::Trajectory3d& traj, io::timestamp_t t, const Eigen::Isometry3d& p) {
@@ -90,38 +115,42 @@ int main(int argc, char* argv[]) {
     io::timestamp_t t = 0;
     io::Trajectory3d t1, t2;
 
-    for (int i = 0; i < 12; ++i) {
-        Eigen::Isometry3d pose;
-        pose = ref * dT;
+    for (int k = 0; k < 3; ++k) {
+      for (int i = 0; i < 12; ++i) {
+          Eigen::Isometry3d pose;
+          pose = ref * dT;
 
-        t += 1;
+          t += 1;
 
-        add_pose(t1, t, pose);
-        add_pose(t2, t, pose * rel);
+          add_pose(t1, t, simulate_odometry_error(pose));
+          add_pose(t2, t, simulate_error(pose * rel));
 
-        ref = pose;
+          ref = pose;
+      }
+
+      dT.linear() = Eigen::AngleAxisd(-angular_vel, Eigen::Vector3d::UnitZ()).toRotationMatrix();
+
+      for (int i = 0; i < 12; ++i) {
+          Eigen::Isometry3d pose;
+          pose = ref * dT;
+
+          t += 1;
+
+          add_pose(t1, t, simulate_odometry_error(pose));
+          add_pose(t2, t, simulate_error(pose * rel));
+
+          ref = pose;
+      }
+
+      ref = ref * dT;
+
+      t += 1;
+
+      add_pose(t1, t, simulate_odometry_error(ref));
+      add_pose(t2, t, simulate_error(ref * rel));
+
+      dT.linear() = Eigen::AngleAxisd(angular_vel, Eigen::Vector3d::UnitZ()).toRotationMatrix();
     }
-
-    dT.linear() = Eigen::AngleAxisd(-angular_vel, Eigen::Vector3d::UnitZ()).toRotationMatrix();
-
-    for (int i = 0; i < 12; ++i) {
-        Eigen::Isometry3d pose;
-        pose = ref * dT;
-
-        t += 1;
-
-        add_pose(t1, t, pose);
-        add_pose(t2, t, pose * rel);
-
-        ref = pose;
-    }
-
-    ref = ref * dT;
-
-    t += 1;
-
-    add_pose(t1, t, ref);
-    add_pose(t2, t, ref * rel);
 
     // Save trajectories
     RUNTIME_ASSERT(io::write_file<io::Trajectory3d::value_type>(t1, ARGS_output1));
