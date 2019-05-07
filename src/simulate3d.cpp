@@ -71,8 +71,6 @@ void add_pose(io::Trajectory3d& traj, io::timestamp_t t, const Eigen::Isometry3d
 
 int main(int argc, char* argv[]) {
 
-    colmap::SetPRNGSeed(1023);
-
     // Handle help flag
     if (args::HelpRequired(argc, argv)) {
         args::ShowHelp();
@@ -98,15 +96,20 @@ int main(int argc, char* argv[]) {
     const double linear_vel = 0.5; // m/s
     const double angular_vel = 0.5; // rad/s
 
+    const double scale_factor = 0.5;
     Eigen::Isometry3d rel;
     rel.linear() = (Eigen::AngleAxisd(- 1.0 / 2.0 * EIGEN_PI, Eigen::Vector3d::UnitZ())
                     * Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY())
                     * Eigen::AngleAxisd(-3.0 / 4.0 * EIGEN_PI, Eigen::Vector3d::UnitX())).toRotationMatrix();
-    rel.translation() = Eigen::Vector3d(0.5, 0.1, 1.0);
+    rel.translation() = Eigen::Vector3d(0.1, 0.5, 1.0);
 
-    Eigen::Isometry3d ref;
-    ref.linear() = Eigen::Matrix3d::Identity();
-    ref.translation() = Eigen::Vector3d::Zero();
+    Eigen::Isometry3d last_pose1;
+    last_pose1.linear() = Eigen::Matrix3d::Identity();
+    last_pose1.translation() = Eigen::Vector3d::Zero();
+
+    Eigen::Isometry3d last_pose2;
+    last_pose2.linear() = Eigen::Matrix3d::Identity();
+    last_pose2.translation() = Eigen::Vector3d::Zero();
 
     Eigen::Isometry3d dT;
     dT.linear() = Eigen::AngleAxisd(angular_vel, Eigen::Vector3d::UnitZ()).toRotationMatrix();
@@ -117,37 +120,46 @@ int main(int argc, char* argv[]) {
 
     for (int k = 0; k < 3; ++k) {
       for (int i = 0; i < 12; ++i) {
-          Eigen::Isometry3d pose;
-          pose = ref * dT;
+          last_pose1 = simulate_odometry_error(last_pose1 * dT);
+          last_pose2 = simulate_odometry_error(last_pose2 * (rel.inverse() * dT * rel));
 
           t += 1;
 
-          add_pose(t1, t, simulate_odometry_error(pose));
-          add_pose(t2, t, simulate_error(pose * rel));
+          last_pose2.translation() *= scale_factor;
 
-          ref = pose;
+          add_pose(t1, t, last_pose1);
+          add_pose(t2, t, last_pose2);
+
+          last_pose2.translation() /= scale_factor;
       }
 
       dT.linear() = Eigen::AngleAxisd(-angular_vel, Eigen::Vector3d::UnitZ()).toRotationMatrix();
 
       for (int i = 0; i < 12; ++i) {
-          Eigen::Isometry3d pose;
-          pose = ref * dT;
+          last_pose1 = simulate_odometry_error(last_pose1 * dT);
+          last_pose2 = simulate_odometry_error(last_pose2 * (rel.inverse() * dT * rel));
 
           t += 1;
 
-          add_pose(t1, t, simulate_odometry_error(pose));
-          add_pose(t2, t, simulate_error(pose * rel));
+          last_pose2.translation() *= scale_factor;
 
-          ref = pose;
+          add_pose(t1, t, last_pose1);
+          add_pose(t2, t, last_pose2);
+
+          last_pose2.translation() /= scale_factor;
       }
 
-      ref = ref * dT;
+      last_pose1 = simulate_odometry_error(last_pose1 * dT);
+      last_pose2 = simulate_odometry_error(last_pose2 * (rel.inverse() * dT * rel));
 
       t += 1;
 
-      add_pose(t1, t, simulate_odometry_error(ref));
-      add_pose(t2, t, simulate_error(ref * rel));
+      last_pose2.translation() *= scale_factor;
+
+      add_pose(t1, t, last_pose1);
+      add_pose(t2, t, last_pose2);
+
+      last_pose2.translation() /= scale_factor;
 
       dT.linear() = Eigen::AngleAxisd(angular_vel, Eigen::Vector3d::UnitZ()).toRotationMatrix();
     }

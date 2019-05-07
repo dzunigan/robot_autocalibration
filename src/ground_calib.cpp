@@ -3,7 +3,8 @@
     "ground_calib"
 
 #define FLAGS_CASES                                                                                \
-    FLAG_CASE(bool, csv, false, "Use csv format for input?")
+    FLAG_CASE(bool, csv, false, "Use csv input format instead of binary")                          \
+    FLAG_CASE(bool, verbose, false, "Output additional information")
 
 #define ARGS_CASES                                                                                 \
     ARG_CASE(input_file)
@@ -35,6 +36,11 @@ void ValidateFlags() {
 inline void PrintCSV(std::ostream& out, const Eigen::Ref<const Eigen::Vector3d>& vec, int precision = 6) {
     out << std::fixed << std::setprecision(precision)
         << vec(0) << ", " << vec(1) << ", " << vec(2);
+}
+
+inline void PrintWSV(std::ostream& out, const Eigen::Ref<const Eigen::Vector3d>& vec, int precision = 6) {
+    out << std::fixed << std::setprecision(precision)
+        << vec(0) << " " << vec(1) << " " << vec(2);
 }
 
 int main(int argc, char* argv[]) {
@@ -93,10 +99,12 @@ int main(int argc, char* argv[]) {
 
     config.Parameters() = models.front();
 
-    PrintHeading1("Closed-form solution");
-    std::cout << "z [m], pitch [rad], roll [rad]" << std::endl;
-    PrintCSV(std::cout, config.Parameters());
-    std::cout << std::endl;
+    if (FLAGS_verbose) {
+        PrintHeading1("Closed-form solution");
+        std::cout << "z, pitch [rad], roll [rad]" << std::endl;
+        PrintCSV(std::cout, config.Parameters());
+        std::cout << std::endl;
+    }
 
     GroundCalibrationOptions options;
     options.loss_function_type = GroundCalibrationOptions::LossFunctionType::CAUCHY;
@@ -105,10 +113,14 @@ int main(int argc, char* argv[]) {
     GroundCalibration calibration(options, config);
     calibration.Solve();
 
-    PrintHeading1("Iterative refinement");
-    std::cout << "z [m], pitch [rad], roll [rad]" << std::endl;
-    PrintCSV(std::cout, calibration.Parameters());
-    std::cout << std::endl;
+    if (FLAGS_verbose) {
+        PrintHeading1("Iterative refinement");
+        std::cout << "z, pitch [rad], roll [rad]" << std::endl;
+        PrintCSV(std::cout, calibration.Parameters());
+        std::cout << std::endl;
+    } else {
+        PrintWSV(std::cout, calibration.Parameters());
+    }
 
     return 0;
 }

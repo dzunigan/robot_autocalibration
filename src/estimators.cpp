@@ -175,12 +175,12 @@ CalibrationEstimator::Estimate(
             b = -2.0*m33*pow(m01,2)*m11 + pow(m01,2)*pow(m13,2) + pow(m01,2)*pow(m23,2) + 2.0*m01*m03*m11*m13 - 2.0*m01*m04*m11*m23 - 2.0*m33*pow(m02,2)*m11 + pow(m02,2)*pow(m13,2) + pow(m02,2)*pow(m23,2) + 2.0*m02*m03*m11*m23 + 2.0*m02*m04*m11*m13 - pow(m03,2)*pow(m11,2) - pow(m04,2)*pow(m11,2) + 2.0*m00*m33*pow(m11,2) - 2.0*m00*m11*pow(m13,2) - 2.0*m00*m11*pow(m23,2),
             c = (pow(m13,2) + pow(m23,2) - m11*m33)*(m33*pow(m01,2) - 2.0*m01*m03*m13 + 2.0*m01*m04*m23 + m33*pow(m02,2) - 2.0*m02*m03*m23 - 2*m02*m04*m13 + m11*pow(m03,2) + m11*pow(m04,2) + m00*pow(m13,2) + m00*pow(m23,2) - m00*m11*m33);
 
-//    std::cout << "a: " << a << std::endl;
-//    std::cout << "b: " << b << std::endl;
-//    std::cout << "c: " << c << std::endl;
+//    std::cout << "a: " << a << ", b: " << b << ", c: " << c << std::endl;
 
     double x0, x1;
     const int real_solutions = solveQuadratic(a, b, c, x0, x1);
+
+//    std::cout << "Num. solutions: " << real_solutions << std::endl;
 
     std::vector<M_t> models;
 
@@ -209,7 +209,7 @@ CalibrationEstimator::Estimate(
 //        std::cout << M + lambda*W << std::endl;
         int kernel_size = solveNullspace(M + lambda*W, phi);
 //        std::cout << "Kernel size: " << kernel_size << std::endl;
-        if (kernel_size != 1) continue;
+        if (kernel_size != 1) return models;
 
         phi *= boost::math::sign(phi(0, 0)) / phi.block<2, 1>(3, 0).norm(); // Normalize solution
 
@@ -563,13 +563,14 @@ std::vector<GroundEstimator::M_t> GroundEstimator::Estimate(const std::vector<X_
     bool solution_found = false;
     double solution_cost = std::numeric_limits<double>::max();
 
+    std::vector<M_t> models;
     for (int i = 0; i < num_solutions; ++i) {
         const double lambda = roots[i];
 
         Eigen::MatrixXd phi;
         int kernel_size = solveNullspace(M + lambda*W, phi);
 
-        if (kernel_size != 1) continue;
+        if (kernel_size != 1) return models;
 
         phi *= boost::math::sign(phi(0, 0)) / phi.block<3, 1>(1, 0).norm(); // Normalize solution
 
@@ -593,7 +594,6 @@ std::vector<GroundEstimator::M_t> GroundEstimator::Estimate(const std::vector<X_
         }
     }
 
-    std::vector<M_t> models;
     if (solution_found)
         models.push_back(solution);
 

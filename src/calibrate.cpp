@@ -36,7 +36,8 @@ EIGEN_DEFINE_STL_VECTOR_SPECIALIZATION_CUSTOM(Sensor)
 #ifndef FLAGS_CASES
 #define FLAGS_CASES                                                                                \
     FLAG_CASE(uint64, min_num_inliers, 6, "Minimum number of inliers to consider a link")          \
-    FLAG_CASE(string, scale_ambiguous, "", "Comma separated motion ids that have scale ambiguity")
+    FLAG_CASE(string, scale_ambiguous, "", "Comma separated motion ids that have scale ambiguity") \
+    FLAG_CASE(bool, verbose, false, "Output additional information")
 #endif
 
 #define FLAG_CASE(type, name, val, txt) \
@@ -83,6 +84,11 @@ void ShowHelp() noexcept {
 inline void PrintCSV(std::ostream& out, const Eigen::Ref<const Eigen::Vector4d>& vec, int precision = 6) {
     out << std::fixed << std::setprecision(precision)
         << vec(0) << ", " << vec(1) << ", " << vec(2) << ", " << vec(3);
+}
+
+inline void PrintWSV(std::ostream& out, const Eigen::Ref<const Eigen::Vector4d>& vec, int precision = 6) {
+    out << std::fixed << std::setprecision(precision)
+        << vec(0) << " " << vec(1) << " " << vec(2) << " " << vec(3);
 }
 
 void ValidateFlags() {
@@ -155,7 +161,8 @@ int main(int argc, char* argv[]) {
     ObservationDatabase observations; // RANSAC inliers
 
     colmap::RANSACOptions ransac_options;
-    ransac_options.max_error = 0.1;
+    ransac_options.max_error = 0.2;
+    //ransac_options.max_error = 0.1;
     //ransac_options.max_error = 0.03;
     ransac_options.min_inlier_ratio = 0.25;
     ransac_options.confidence = 0.9999;
@@ -169,6 +176,8 @@ int main(int argc, char* argv[]) {
 
         Calibration_RANSAC calibration_ransac(ransac_options);
         ransac_report = calibration_ransac.Estimate(reference.Observations(), sensor.Observations());
+
+        CHECK(ransac_report.success);
 
         std::vector<CalibrationEstimator::X_t> inliers_0;
         std::vector<CalibrationEstimator::Y_t> inliers_i;
@@ -184,7 +193,7 @@ int main(int argc, char* argv[]) {
         }
 
         // Check inlier set
-        std::cout << "Num. inliers: " << ransac_report.support.num_inliers << std::endl;
+        //std::cout << "Num. inliers: " << ransac_report.support.num_inliers << std::endl;
         CHECK(ransac_report.support.num_inliers > ransac_options.min_inlier_ratio * sensor.Observations().size()) << "Not enough inliers!";
 
         // Compute model from inliers
@@ -192,8 +201,12 @@ int main(int argc, char* argv[]) {
         CHECK_EQ(models.size(), 1);
         sensor.Calibration() = models.front();
 
-        PrintCSV(std::cout, sensor.Calibration());
-        std::cout << std::endl;
+        if (FLAGS_verbose) {
+            PrintHeading1("Closed-form solution");
+            std::cout << "x, y, yaw [rad], scale" << std::endl;
+            PrintCSV(std::cout, sensor.Calibration());
+            std::cout << std::endl;
+        }
     }
 
     // Joint Optimization
@@ -228,8 +241,9 @@ int main(int argc, char* argv[]) {
     // Refinement options
     BatchCalibrationOptions options;
     options.use_additional_constraints = true;
-    options.loss_function_type = BatchCalibrationOptions::LossFunctionType::CAUCHY;
-    options.loss_function_scale = 0.1;
+    options.loss_function_type = BatchCalibrationOptions::LossFunctionType::TRIVIAL;
+    //options.loss_function_type = BatchCalibrationOptions::LossFunctionType::CAUCHY;
+    //options.loss_function_scale = 0.1;
     options.print_summary = false;
     options.solver_options.minimizer_progress_to_stdout = false;
 
@@ -247,16 +261,24 @@ int main(int argc, char* argv[]) {
     BatchCalibration calibration(options, config);
 
     // Output
-    if (calibration.Solve()) {
-        for (size_t i = 1; i < sensors.size(); ++i) {
-            const Sensor& sensor = sensors[i];
-            Eigen::Vector4d params = calibration.Paramerameters(sensor.SensorId());
-            params *= boost::math::sign(params(3));
+    CHECK(calibration.Solve());
+    for (size_t i = 1; i < sensors.size(); ++i) {
+        const Sensor& sensor = sensors[i];
+        Eigen::Vector4d params = calibration.Paramerameters(sensor.SensorId());
+        params *= boost::math::sign(params(3));
 
+        if (FLAGS_verbose) {
+            PrintHeading1("Iterative refinement");
+            std::cout << "x, y, yaw [rad], scale" << std::endl;
             PrintCSV(std::cout, params);
             std::cout << std::endl;
+        } else {
+            PrintWSV(std::cout, params);
         }
-    } else {
+    }
+
+/*
+      } else {
         Eigen::Vector4d vnan;
         vnan.fill(std::numeric_limits<double>::quiet_NaN());
         for (size_t i = 1; i < sensors.size(); ++i) {
@@ -264,7 +286,8 @@ int main(int argc, char* argv[]) {
             PrintCSV(std::cout, vnan);
             std::cout << std::endl;
         }
-    }
+    } 
+*/
 
     return 0;
 }

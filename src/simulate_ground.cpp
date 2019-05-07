@@ -37,8 +37,6 @@ Eigen::Vector3d simulate_error(const Eigen::Vector3d& p) {
 
 int main(int argc, char* argv[]) {
 
-    colmap::SetPRNGSeed(1023);
-
     // Handle help flag
     if (args::HelpRequired(argc, argv)) {
         args::ShowHelp();
@@ -61,6 +59,7 @@ int main(int argc, char* argv[]) {
     ValidateArgs();
     ValidateFlags();
 
+    const double scale_factor = 0.5;
     Eigen::Isometry3d rel;
     rel.linear() = (Eigen::AngleAxisd(- 1.0 / 2.0 * EIGEN_PI, Eigen::Vector3d::UnitZ())
                     * Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY())
@@ -100,6 +99,7 @@ int main(int argc, char* argv[]) {
             Eigen::Vector3d p = (l * z);
 
             points.row(idx) = simulate_error(p).transpose();
+            points.row(idx) *= scale_factor;
             idx++;
         }
     }

@@ -40,6 +40,11 @@ if(BUILD_SYNC_TOOL)
   add_subdirectory(tools/sync)
 endif(BUILD_SYNC_TOOL)
 
+option(BUILD_PLANAR_TOOL "Build planar tool" ON)
+if(BUILD_PLANAR_TOOL)
+  add_subdirectory(tools/planar)
+endif(BUILD_PLANAR_TOOL)
+
 include_directories(include ${Boost_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${GFLAGS_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS})
 
 ## Header files
