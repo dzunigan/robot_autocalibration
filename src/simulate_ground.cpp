@@ -62,9 +62,9 @@ int main(int argc, char* argv[]) {
     const double scale_factor = 0.5;
     Eigen::Isometry3d rel;
     rel.linear() = (Eigen::AngleAxisd(- 1.0 / 2.0 * EIGEN_PI, Eigen::Vector3d::UnitZ())
-                    * Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY())
+                    * Eigen::AngleAxisd(1.0 / 12.0, Eigen::Vector3d::UnitY())
                     * Eigen::AngleAxisd(-3.0 / 4.0 * EIGEN_PI, Eigen::Vector3d::UnitX())).toRotationMatrix();
-    rel.translation() = Eigen::Vector3d(0.5, 0.1, 1.0);
+    rel.translation() = Eigen::Vector3d(0.1, 0.5, 1.0);
 
     Eigen::Vector4d plane(0.0, 0.0, 1.0, 0.0);
     plane = hesseNormalForm(plane);

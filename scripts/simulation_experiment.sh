@@ -6,7 +6,7 @@ fi
 
 noise_level=$1
 
-lin_std=$(bc <<<"0.005*$noise_level")
+lin_std=$(bc <<<"0.001*$noise_level")
 ang_std=$(bc <<<"0.03*$noise_level")
 point_std=$(bc <<<"0.01*$noise_level")
 
@@ -49,4 +49,3 @@ do
     rm points_$noise_level.txt
 
 done
-

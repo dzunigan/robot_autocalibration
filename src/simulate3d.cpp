@@ -3,7 +3,7 @@
     "simulate3d"
 
 #define FLAGS_CASES                                                                                \
-    FLAG_CASE(double, lin_std, 0.005, "Standard deviation for translation [m]")                     \
+    FLAG_CASE(double, lin_std, 0.001, "Standard deviation for translation [m]")                    \
     FLAG_CASE(double, ang_std, 0.03, "Standard deviation for rotation [rad]")
 
 #define ARGS_CASES                                                                                 \
@@ -99,9 +99,9 @@ int main(int argc, char* argv[]) {
     const double scale_factor = 0.5;
     Eigen::Isometry3d rel;
     rel.linear() = (Eigen::AngleAxisd(- 1.0 / 2.0 * EIGEN_PI, Eigen::Vector3d::UnitZ())
-                    * Eigen::AngleAxisd(0.0, Eigen::Vector3d::UnitY())
+                    * Eigen::AngleAxisd(1.0 / 12.0, Eigen::Vector3d::UnitY())
                     * Eigen::AngleAxisd(-3.0 / 4.0 * EIGEN_PI, Eigen::Vector3d::UnitX())).toRotationMatrix();
-    rel.translation() = Eigen::Vector3d(0.1, 0.5, 1.0);
+    rel.translation() = Eigen::Vector3d(0.5, 0.1, 1.0);
 
     Eigen::Isometry3d last_pose1;
     last_pose1.linear() = Eigen::Matrix3d::Identity();

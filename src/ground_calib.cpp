@@ -95,9 +95,13 @@ int main(int argc, char* argv[]) {
     }
 
     std::vector<Eigen::Vector3d> models = GroundEstimator::Estimate(config.Observations());
-    RUNTIME_ASSERT(!models.empty());
+    //RUNTIME_ASSERT(!models.empty());
 
-    config.Parameters() = models.front();
+    if (!models.empty()) {
+        config.Parameters() = models.front();
+    } else {
+        config.Parameters() = Eigen::Vector3d(1.0, 0.0, 0.0);
+    }
 
     if (FLAGS_verbose) {
         PrintHeading1("Closed-form solution");
