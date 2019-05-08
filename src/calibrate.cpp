@@ -161,8 +161,7 @@ int main(int argc, char* argv[]) {
     ObservationDatabase observations; // RANSAC inliers
 
     colmap::RANSACOptions ransac_options;
-    ransac_options.max_error = 0.2;
-    //ransac_options.max_error = 0.1;
+    ransac_options.max_error = 0.1;
     //ransac_options.max_error = 0.03;
     ransac_options.min_inlier_ratio = 0.25;
     ransac_options.confidence = 0.9999;
@@ -241,9 +240,9 @@ int main(int argc, char* argv[]) {
     // Refinement options
     BatchCalibrationOptions options;
     options.use_additional_constraints = true;
-    options.loss_function_type = BatchCalibrationOptions::LossFunctionType::TRIVIAL;
-    //options.loss_function_type = BatchCalibrationOptions::LossFunctionType::CAUCHY;
-    //options.loss_function_scale = 0.1;
+    //options.loss_function_type = BatchCalibrationOptions::LossFunctionType::TRIVIAL;
+    options.loss_function_type = BatchCalibrationOptions::LossFunctionType::CAUCHY;
+    options.loss_function_scale = 0.1;
     options.print_summary = false;
     options.solver_options.minimizer_progress_to_stdout = false;
 
