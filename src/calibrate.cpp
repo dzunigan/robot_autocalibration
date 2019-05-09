@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
     ObservationDatabase observations; // RANSAC inliers
 
     colmap::RANSACOptions ransac_options;
-    ransac_options.max_error = 0.1;
+    ransac_options.max_error = 0.2;
     //ransac_options.max_error = 0.03;
     ransac_options.min_inlier_ratio = 0.25;
     ransac_options.confidence = 0.9999;

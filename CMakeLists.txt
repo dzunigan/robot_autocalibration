@@ -45,6 +45,11 @@ if(BUILD_PLANAR_TOOL)
   add_subdirectory(tools/planar)
 endif(BUILD_PLANAR_TOOL)
 
+option(BUILD_TRAJECTORY_TOOL "Build trajectory tool" ON)
+if(BUILD_TRAJECTORY_TOOL)
+  add_subdirectory(tools/trajectory_utils)
+endif(BUILD_TRAJECTORY_TOOL)
+
 include_directories(include ${Boost_INCLUDE_DIRS} ${CERES_INCLUDE_DIRS} ${EIGEN3_INCLUDE_DIR} ${GFLAGS_INCLUDE_DIR} ${GLOG_INCLUDE_DIRS})
 
 ## Header files

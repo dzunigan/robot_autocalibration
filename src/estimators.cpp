@@ -529,7 +529,7 @@ std::vector<GroundEstimator::M_t> GroundEstimator::Estimate(const std::vector<X_
 
         Eigen::Matrix<double, 1, 4> Q;
         Q << 1.0, x_k(0), x_k(1), x_k(2);
-        Q *= 1.0/x_k(2); // Weight
+        Q *= std::sqrt(1.0/x_k.norm()); // Weight
 
         M += Q.transpose()*Q;
     }
