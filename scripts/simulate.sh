@@ -6,8 +6,8 @@ fi
 
 noise_level=$1
 
-lin_std=$(bc <<<"0.001*$noise_level")
-ang_std=$(bc <<<"0.03*$noise_level")
+lin_std=$(bc <<<"0.0003*$noise_level")
+ang_std=$(bc <<<"0.006*$noise_level")
 point_std=$(bc <<<"0.01*$noise_level")
 
 ./build/simulate3d --lin_std=$lin_std --ang_std=$ang_std odo_$noise_level.txt cam_$noise_level.txt

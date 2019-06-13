@@ -79,4 +79,3 @@ target_link_libraries(simulate3d ${Boost_LIBRARIES} ${CERES_LIBRARIES} ${GFLAGS_
 
 add_executable(simulate_ground src/simulate_ground.cpp src/random.cpp src/random_sampler.cpp src/support_measurement.cpp)
 target_link_libraries(simulate_ground ${Boost_LIBRARIES} ${CERES_LIBRARIES} ${GFLAGS_LIBRARY} ${GLOG_LIBRARIES})
-
