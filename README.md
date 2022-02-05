@@ -1,11 +1,11 @@
 # Automatic Multi-Sensor Extrinsic Calibration for Mobile Robots
-Implementation of an automatic method to estimate the extrinsic calibration parameters of multiple sensors explicitly handling scale ambiguity from cameras.
+Implementation of an automatic method to estimate the extrinsic calibration parameters of multiple sensors, explicitly handling the scale ambiguity arising from monocular cameras.
 
-**Authors:** [David Zuñiga-Noël](http://mapir.isa.uma.es/mapirwebsite/index.php/people/270), [Jose-Raul Ruiz-Sarmiento](http://mapir.uma.es/mapirwebsite/index.php/people/108-jose-raul-ruiz-sarmiento), [Ruben Gomez-Ojeda](http://mapir.isa.uma.es/mapirwebsite/index.php/people/164-ruben-gomez), [Javier Gonzalez-Jimenez](http://mapir.isa.uma.es/mapirwebsite/index.php/people/95-javier-gonzalez-jimenez)
+**Authors:** [David Zuñiga-Noël](http://mapir.uma.es/dzuniga), [Jose-Raul Ruiz-Sarmiento](https://mapir.isa.uma.es/mapirwebsite/?p=1366), [Ruben Gomez-Ojeda](https://mapir.isa.uma.es/mapirwebsite/?p=2155), [Javier Gonzalez-Jimenez](https://mapir.isa.uma.es/mapirwebsite/?p=1536)
 
-**Related Publications:** [Automatic Multi-Sensor Extrinsic Calibration for Mobile Robots](https://arxiv.org/abs/1906.04670)
+**Related Publications:** [Automatic Multi-Sensor Extrinsic Calibration for Mobile Robots](https://doi.org/10.1109/LRA.2021.3091407) [arXiv](https://arxiv.org/abs/1906.04670)
 
-**License:**  [GPLv3](https://raw.githubusercontent.com/dzunigan/calibration2d/master/LICENSE.txt)
+**License:**  [GPLv3](https://raw.githubusercontent.com/dzunigan/robot_autocalibration/master/LICENSE.txt)
 
 ## 1. Dependencies
 
