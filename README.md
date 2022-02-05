@@ -3,7 +3,7 @@ Implementation of an automatic method to estimate the extrinsic calibration para
 
 **Authors:** [David Zuñiga-Noël](http://mapir.uma.es/dzuniga), [Jose-Raul Ruiz-Sarmiento](https://mapir.isa.uma.es/mapirwebsite/?p=1366), [Ruben Gomez-Ojeda](https://mapir.isa.uma.es/mapirwebsite/?p=2155), [Javier Gonzalez-Jimenez](https://mapir.isa.uma.es/mapirwebsite/?p=1536)
 
-**Related Publications:** [Automatic Multi-Sensor Extrinsic Calibration for Mobile Robots](https://doi.org/10.1109/LRA.2021.3091407) [arXiv](https://arxiv.org/abs/1906.04670)
+**Related Publications:** [Automatic Multi-Sensor Extrinsic Calibration for Mobile Robots](https://arxiv.org/abs/1906.04670)
 
 **License:**  [GPLv3](https://raw.githubusercontent.com/dzunigan/robot_autocalibration/master/LICENSE.txt)
 
