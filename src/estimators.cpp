@@ -604,13 +604,14 @@ std::vector<GroundEstimator::M_t> GroundEstimator::Estimate(const std::vector<X_
 void GroundEstimator::Residuals(const std::vector<X_t>& x, const M_t& m,
         std::vector<double>* residuals) {
     CHECK_GT(m(0), 0);
+    CHECK_NOTNULL(residuals);
 
     const std::size_t n = x.size();
     residuals->resize(n);
 
     const double h = m(0);
     const double cp = std::cos(m(1)), sp = std::sin(m(1));
-    const double cr = std::cos(2), sr = std::sin(m(2));
+    const double cr = std::cos(m(2)), sr = std::sin(m(2));
     const Eigen::RowVector3d rz(-sp, cp*sr, cp*cr);
 
     for (std::size_t k = 0; k < n; ++k) {
