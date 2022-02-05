@@ -261,7 +261,7 @@ struct BatchCalibrationOptions {
       solver_options.max_num_consecutive_invalid_steps = 5;
       solver_options.max_consecutive_nonmonotonic_steps = 5;
       solver_options.num_threads = -1;
-      solver_options.num_linear_solver_threads = -1;
+      //solver_options.num_linear_solver_threads = -1;
     }
 
     // Create a new loss function based on the specified options. The caller
@@ -401,7 +401,7 @@ public:
         ceres::Solver::Options solver_options = options_.solver_options;
         solver_options.linear_solver_type = ceres::DENSE_QR;
         solver_options.num_threads = 1;
-        solver_options.num_linear_solver_threads = 1;
+        //solver_options.num_linear_solver_threads = 1;
 
         std::string solver_error;
         CHECK(solver_options.IsValid(&solver_error)) << solver_error;
@@ -494,7 +494,7 @@ struct GroundCalibrationOptions {
       solver_options.max_num_consecutive_invalid_steps = 5;
       solver_options.max_consecutive_nonmonotonic_steps = 5;
       solver_options.num_threads = -1;
-      solver_options.num_linear_solver_threads = -1;
+      //solver_options.num_linear_solver_threads = -1;
     }
 
     // Create a new loss function based on the specified options. The caller
@@ -589,7 +589,7 @@ public:
         ceres::Solver::Options solver_options = options_.solver_options;
         solver_options.linear_solver_type = ceres::DENSE_QR;
         solver_options.num_threads = 1;
-        solver_options.num_linear_solver_threads = 1;
+        //solver_options.num_linear_solver_threads = 1;
 
         std::string solver_error;
         CHECK(solver_options.IsValid(&solver_error)) << solver_error;
